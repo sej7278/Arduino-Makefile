@@ -794,7 +794,7 @@ ifeq ($(strip $(CHK_SOURCES)),)
                 $(call show_config_info,No .pde or .ino files found. If you are compiling .c or .cpp files then you need to explicitly include Arduino header files)
             else
                 #TODO: Support more than one file. https://github.com/sudar/Arduino-Makefile/issues/49
-                $(error Need exactly one .pde or .ino file. This makefile doesn't support multiple .ino/.pde files yet)
+                $(error Need exactly one .pde or .ino file. This makefile doesn\'t support multiple .ino/.pde files yet)
             endif
         endif
 
@@ -822,15 +822,27 @@ else
 endif
 
 ########################################################################
+# Automatically find the libraries needed to compile the sketch
+
+ARD_LIB_DETECTION := $(shell which ard-lib-detection 2> /dev/null)
+ifndef ARD_LIB_DETECTION
+	ARD_LIB_DETECTION := $(ARDMK_DIR)/bin/ard-lib-detection
+endif
+
+ifndef SKETCH_LIBS
+	SKETCH_LIBS := $(shell $(ARD_LIB_DETECTION) $(USER_LIB_PATH) | sed -ne 's/SKETCH_LIBS \(.*\) /\1/p')
+endif
+
+ifndef SKETCH_LIBS_DEPS
+	SKETCH_LIBS_DEPS := $(shell $(ARD_LIB_DETECTION) $(USER_LIB_PATH) | sed -ne 's/SKETCH_LIBS_DEPS \(.*\) /\1/p')
+endif
+
+########################################################################
 # Determine ARDUINO_LIBS automatically
 
 ifndef ARDUINO_LIBS
     # automatically determine included libraries
     ARDUINO_LIBS += $(filter $(notdir $(wildcard $(ARDUINO_DIR)/libraries/*)), \
-        $(shell sed -ne 's/^ *\# *include *[<\"]\(.*\)\.h[>\"]/\1/p' $(LOCAL_SRCS)))
-    ARDUINO_LIBS += $(filter $(notdir $(wildcard $(ARDUINO_SKETCHBOOK)/libraries/*)), \
-        $(shell sed -ne 's/^ *\# *include *[<\"]\(.*\)\.h[>\"]/\1/p' $(LOCAL_SRCS)))
-    ARDUINO_LIBS += $(filter $(notdir $(wildcard $(USER_LIB_PATH)/*)), \
         $(shell sed -ne 's/^ *\# *include *[<\"]\(.*\)\.h[>\"]/\1/p' $(LOCAL_SRCS)))
     ARDUINO_LIBS += $(filter $(notdir $(wildcard $(ARDUINO_PLATFORM_LIB_PATH)/*)), \
         $(shell sed -ne 's/^ *\# *include *[<\"]\(.*\)\.h[>\"]/\1/p' $(LOCAL_SRCS)))
@@ -932,7 +944,10 @@ get_library_files  = $(if $(and $(wildcard $(1)/src), $(wildcard $(1)/library.pr
                         $(wildcard $(1)/*.$(2) $(1)/utility/*.$(2)))
 
 # General arguments
-USER_LIBS      := $(sort $(wildcard $(patsubst %,$(USER_LIB_PATH)/%,$(ARDUINO_LIBS))))
+USER_LIBS      := $(wildcard $(patsubst %,$(USER_LIB_PATH)/%,$(ARDUINO_LIBS))) \
+                  $(wildcard $(patsubst %,$(USER_LIB_PATH)/%,$(SKETCH_LIBS))) \
+                  $(wildcard $(patsubst %,$(USER_LIB_PATH)/%,$(SKETCH_LIBS_DEPS)))
+
 USER_LIB_NAMES := $(patsubst $(USER_LIB_PATH)/%,%,$(USER_LIBS))
 
 # Let user libraries override system ones.
@@ -1107,13 +1122,32 @@ else
     $(call show_config_info,Size utility: Basic (not AVR-aware),[AUTODETECTED])
 endif
 
-ifneq (,$(strip $(ARDUINO_LIBS)))
-    $(call arduino_output,-)
+# either calculate parent dir from arduino dir, or user-defined path
+ifndef BOOTLOADER_PARENT
+    BOOTLOADER_PARENT = $(ARDUINO_DIR)/hardware/$(VENDOR)/$(ARCHITECTURE)/bootloaders
+    $(call show_config_variable,BOOTLOADER_PARENT,[COMPUTED],(from ARDUINO_DIR))
+else
+    $(call show_config_variable,BOOTLOADER_PARENT,[USER])
+endif
+
+# Tools version info
+ARDMK_VERSION = 1.5
+$(call show_config_variable,ARDMK_VERSION,[COMPUTED])
+
+CC_VERSION := $(shell $(CC) -dumpversion)
+$(call show_config_variable,CC_VERSION,[COMPUTED],($(CC_NAME)))
+
+# do we have any libs?
+ifneq (,$(strip $(USER_LIBS) $(ARDUINO_LIBS) $(SYS_LIBS) $(PLATFORM_LIBS) $(SKETCH_LIBS) $(SKETCH_LIBS_DEPS)))
     $(call show_config_info,ARDUINO_LIBS =)
 endif
 
-ifneq (,$(strip $(USER_LIB_NAMES)))
-    $(foreach lib,$(USER_LIB_NAMES),$(call show_config_info,  $(lib),[USER]))
+ifneq (,$(strip $(SKETCH_LIBS)))
+    $(foreach lib,$(SKETCH_LIBS),$(call show_config_info,  $(lib),[USER]))
+endif
+
+ifneq (,$(strip $(SKETCH_LIBS_DEPS)))
+    $(foreach lib,$(SKETCH_LIBS_DEPS),$(call show_config_info,  $(lib),[USER]))
 endif
 
 ifneq (,$(strip $(SYS_LIB_NAMES)))
@@ -1123,22 +1157,6 @@ endif
 ifneq (,$(strip $(PLATFORM_LIB_NAMES)))
     $(foreach lib,$(PLATFORM_LIB_NAMES),$(call show_config_info,  $(lib),[PLATFORM]))
 endif
-
-# either calculate parent dir from arduino dir, or user-defined path
-ifndef BOOTLOADER_PARENT
-    BOOTLOADER_PARENT = $(ARDUINO_DIR)/hardware/$(VENDOR)/$(ARCHITECTURE)/bootloaders
-    $(call show_config_variable,BOOTLOADER_PARENT,[COMPUTED],(from ARDUINO_DIR))
-else
-    $(call show_config_variable,BOOTLOADER_PARENT,[USER])
-endif
-
-########################################################################
-# Tools version info
-ARDMK_VERSION = 1.5
-$(call show_config_variable,ARDMK_VERSION,[COMPUTED])
-
-CC_VERSION := $(shell $(CC) -dumpversion)
-$(call show_config_variable,CC_VERSION,[COMPUTED],($(CC_NAME)))
 
 # end of config output
 $(call show_separator)

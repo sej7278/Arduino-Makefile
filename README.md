@@ -217,7 +217,7 @@ The libraries will be searched in the following places in the following order.
 
 The libraries inside user directories will take precedence over libraries present in Arduino core directory.
 
-The makefile can autodetect the libraries that are included from your sketch and can include them automatically. But it can't detect libraries that are included from other libraries. (see [issue #93](https://github.com/sudar/Arduino-Makefile/issues/93))
+The makefile can autodetect the libraries that are included from your sketch and can include them automatically. It can also detect libraries that are included from other libraries.
 
 ## avrdude
 

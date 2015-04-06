@@ -52,6 +52,7 @@ I tried to give credit whenever possible. If I have missed anyone, kindly add it
 - Fix: Added support for VARIANT being a submenu item in 1.6 cores like attiny (https://github.com/sej7278)
 - Fix: Replaced copyright symbol causing sed problems on OSX (Issue #335). (https://github.com/sej7278)
 - Fix: Fix issues with resetting Leonardo and Micro boards(Issue #340) (https://github.com/calvinli)
+- New: Add automatic library detection when compiling a sketch. (http://github.com/ladislas)
 
 ### 1.3.4 (2014-07-12)
 - Tweak: Allow spaces in "Serial.begin (....)". (Issue #190) (https://github.com/pdav)
